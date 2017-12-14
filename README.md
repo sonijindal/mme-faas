@@ -47,7 +47,7 @@ This server acts as a proxy between eNB and MME. The primary job of this proxy i
 
 This server acts as a proxy between MME and SGW. The primary job of this proxy is to convert the http messages to gtpv-c message and send it to SGW. Currently, `http_server` runs on SERVER2 which listens for `create_session_req` message and replies by calling `create_session_res` function with `s1_sgw_teid` and `s5_pgw_teid`.
 
-### Setup at cloud
+### Cloud provider setup
 
 Please see SETUP_<cloud_provider>.md. Eg, [SETUP_AWS.md](docs/SETUP_AWS.md)
 
