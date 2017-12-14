@@ -35,11 +35,11 @@ From the RDS console, copy the host url and enter in the `rds_host` field of `rd
 
 ###### db_username
 
-At step 7 from the aws link, the username you entered needs to be set in `db_username` field of `rds_config.py`
+At step 7 from the aws [link](http://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_CreateInstance.html), the username you entered needs to be set in `db_username` field of `rds_config.py`
 
 ###### db_password
 
-At step 7 from the aws link, the password you entered needs to be set in `db_password` field of `rds_config.py`
+At step 7 from the aws [link](http://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_CreateInstance.html), the password you entered needs to be set in `db_password` field of `rds_config.py`
 
 ###### db_name
 
