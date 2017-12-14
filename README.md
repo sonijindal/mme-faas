@@ -35,6 +35,17 @@ SERVER 1                        Functions                     SERVER 2
     |                              |                               |
     |                              |                               |
 ```
+##### MME
+
+The Mobility Management Entity(MME) is broken down into short lived stateless functions like attach_request, create_session_request, create_session_response etc. In the above diagram, MME is a collection of functions running on the serverless platform (currently AWS). When request arrives, appropriate function handler is invoked which does processing and invoke the next function for further processing.
+
+##### SERVER 1
+
+This server acts as a proxy between eNB and MME. The primary job of this proxy is to convert the s1ap messages to json payload and invoke the MME functions. Currently, `http_client` runs on SERVER1 which invokes `attach_request` function and listens for `attach_accept` after the bearers are setup.
+
+##### SERVER 2
+
+This server acts as a proxy between MME and SGW. The primary job of this proxy is to convert the http messages to gtpv-c message and send it to SGW. Currently, `http_server` runs on SERVER2 which listens for `create_session_req` message and replies by calling `create_session_res` function with `s1_sgw_teid` and `s5_pgw_teid`.
 
 ### Setup at cloud
 
