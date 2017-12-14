@@ -49,7 +49,7 @@ This server acts as a proxy between MME and SGW. The primary job of this proxy i
 
 ### Setup at cloud
 
-Please see SETUP_<cloud_provider>.md. Eg, SETUP_AWS.md
+Please see SETUP_<cloud_provider>.md. Eg, [SETUP_AWS.md](docs/SETUP_AWS.md)
 
 ### MME Setup
 
