@@ -16,10 +16,10 @@ limitations under the License
 
 ### role_arn
 
-Create an invoker role following the steps in (https://www.oreilly.com/learning/how-do-i-invoke-a-lambda-from-another-lambda-in-aws) from 1:22min
+Create an invoker role following the steps in [this](https://www.oreilly.com/learning/how-do-i-invoke-a-lambda-from-another-lambda-in-aws) from 1:22min
 
 ### req_url
-1. Create API_GATEWAY from api gateway console. Follow instructions in http://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-create-api-from-example.html
+1. Create API_GATEWAY from api gateway console. Follow instructions in [this link](http://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-create-api-from-example.html)
 
 2. Add API_GATEWAY trigger to `attach_request` and `create_session_res` and set the `Security` as `None` from the dropdown menu.
 3. Note the URLs for both the functions and update in `http_client.go` and `http_server.go`
@@ -27,7 +27,7 @@ Create an invoker role following the steps in (https://www.oreilly.com/learning/
 ### Database
 #### Create RDS MySQL database:
 
-Follow instructions in http://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_CreateInstance.html
+Follow these [instructions](http://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_CreateInstance.html) to create an RDS instance.
 
 ###### rds_host
 
@@ -57,7 +57,25 @@ mysql> use mme_ue_db
 #### Create two tables:
 
 Using CLI or MySQLWorkBench create two tables as follows:
+
 ```
+mysql> CREATE TABLE `ue_info` (
+  `ue_id` int(11) NOT NULL,
+  `ue_id_type` varchar(45) NOT NULL,
+  `ue_state` int(11) DEFAULT NULL,
+  `enb_ue_s1ap_id` varchar(45) DEFAULT NULL,
+  `ue_cap` varchar(45) DEFAULT NULL,
+  `mme_s1ap_ue_id` int(11) DEFAULT NULL,
+  `ecgi` varchar(45) DEFAULT NULL,
+  `eps_bearer_id` int(11) DEFAULT NULL,
+  `pgw_ip` varchar(45) DEFAULT NULL,
+  `apn` varchar(45) DEFAULT NULL,
+  `tai` varchar(45) DEFAULT NULL,
+  `s1_sgw_teid` varchar(45) DEFAULT NULL,
+  `s5_pgw_teid` varchar(45) DEFAULT NULL,
+  PRIMARY KEY (`ue_id`),
+  UNIQUE KEY `ue_id_UNIQUE` (`ue_id`));
+
 mysql> describe ue_info;
 +----------------+-------------+------+-----+---------+-------+
 | Field          | Type        | Null | Key | Default | Extra |
@@ -77,6 +95,11 @@ mysql> describe ue_info;
 | s5_pgw_teid    | varchar(45) | YES  |     | NULL    |       |
 +----------------+-------------+------+-----+---------+-------+
 13 rows in set (0.06 sec)
+
+mysql> CREATE TABLE `mme_ue_ids` (
+  `mme_s1ap_ue_id` int(11) NOT NULL,
+  PRIMARY KEY (`mme_s1ap_ue_id`)
+)
 
 mysql> describe mme_ue_ids;
 +----------------+---------+------+-----+---------+-------+
