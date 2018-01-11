@@ -1,0 +1,11 @@
+provider:  
+  name: faas
+  gateway: http://128.110.153.209:8080
+
+functions:  
+  create_session_req:
+    lang: python
+    handler: ./create_session_req
+    image: sonika/create_session_req
+    environment:
+      write_debug: true

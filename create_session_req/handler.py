@@ -1,6 +1,6 @@
 '''
 Copyright (c) 2017 Sonika Jindal
-  
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -18,19 +18,26 @@ import logging
 import json
 import requests
 
+# This function sends the create session request to SGW
+
 LOGGER = logging.getLogger()
 LOGGER.setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
-def handler(event, context):
-    LOGGER.info('ATTACH ACCEPT function')
+def handle(event):
+    LOGGER.info("Inside create session req")
     LOGGER.info(event)
-    eve={"Message":"attach_accept", "UeId":event['ue_id'], "UeIdType":event['ue_id_type']}
+    print("Inside create session req")
+    print(event)
+    event = json.loads(event)    
+    eve={"Message":"create_session_req", "UeId":event['ue_id'], "UeIdType":event['ue_id_type'], "UeRespIp":event['ue_resp_ip']}
     payload=json.dumps(eve)
-    url = "http://"+event['ue_resp_ip']+":8000"
+    url = "http://"+event['sgw_req_ip']+":8002"
     headers = {
       'content-type': "application/json" 
     }
     r = requests.post(url,headers=headers,data=payload)
-    LOGGER.info(r)
+    print(r)
 
-    return "attach accepted"  # Echo back the first key value
+    return "create_session_res"
+

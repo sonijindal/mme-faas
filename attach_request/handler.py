@@ -22,6 +22,7 @@ import boto3
 import json
 import urllib
 import random
+import requests
 
 rds_host  = rds_config.rds_host
 name = rds_config.db_username
@@ -30,7 +31,8 @@ db_name = rds_config.db_name
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
+logging.basicConfig(level=logging.INFO)
+'''
 try:
     conn = pymysql.connect(rds_host, user=name, passwd=password, db=db_name, connect_timeout=5)
 except Exception as e:
@@ -66,8 +68,10 @@ def insert(ue_id, ue_id_type, enb_ue_s1ap_id, ecgi, ue_cap, mme_s1ap_ue_id, eps_
             logger.error(e)
             logger.error(e.args)
             sys.exit()
-
+'''
 def generate_mme_s1ap_ue_id():
+    id = random.randint(0,100000)
+    '''
     while True:
         id = random.randint(0,100000)
         with conn.cursor() as cur:
@@ -82,8 +86,9 @@ def generate_mme_s1ap_ue_id():
                 logger.error(e)
                 logger.error(e.args)
                 continue
-    
+    '''
     return id
+
 
 def generate_eps_bearer_id():
     return "5"
@@ -94,15 +99,16 @@ def get_apn_from_hss():
 def get_pgw_from_apn():
     return "128.100.3.4"
 
-def handler(event, context):
+def handle(event):
     """
     This function fetches content from mysql RDS instance
     """
+    print("Hello! You said: " + event)
     item_count = 0
     logger.info(event)
-    body = json.loads(event['body'])
-    logger.info(body)
-    logger.info(body['UeId'])
+    body = json.loads(event)
+    #logger.info(body)
+    print(body['UeId'])
     #count = select_with_key(event['ue_id'])
     #if count != 0:
     #    print("Count:",count)
@@ -119,11 +125,11 @@ def handler(event, context):
     pgw_ip = get_pgw_from_apn()
     print(pgw_ip)
     ue_state = "1"
-    
+    '''
     insert(body['UeId'],body['UeIdType'], body['EnbUeS1apId'], body['Ecgi'], body['UeCap'], mme_s1ap_ue_id,\
         eps_bearer_id, apn, pgw_ip, ue_state)
     print("record inserted!")
-    
+    '''    
     payload={}
     payload['ue_id'] = body['UeId']
     payload['ue_id_type']= body['UeIdType']
@@ -137,6 +143,7 @@ def handler(event, context):
     payload['ue_state']=ue_state
     payload['ue_resp_ip']=body['UeRespIp']
     payload['sgw_req_ip']=body['SgwReqIp']
+    '''
     lambda_client = boto3.client('lambda')
     try:
         invoke_response = lambda_client.invoke(
@@ -146,7 +153,14 @@ def handler(event, context):
     except Exception as e:
         print(e)
         raise e
-    
+    '''
+    gateway = "128.110.153.209"
+    url = "http://"+gateway+":8080/function/create_session_req"
+    headers = {
+      'content-type': "application/json" 
+    }
+    invoke_response = requests.post(url,headers=headers,data=json.dumps(payload))
+ 
     print(invoke_response)
     
     return "ADDED"

@@ -1,0 +1,12 @@
+provider:  
+  name: faas
+  gateway: http://128.110.153.209:8080
+
+functions:
+  attach_request:
+    lang: python
+    write_debug: true
+    handler: ./attach_request
+    image: sonika/attach_request
+    environment:
+      write_debug: true
