@@ -22,19 +22,32 @@ import boto3
 import json
 import urllib
 import random
-import requests
+import grequests
+import time
 
+rds_host  = "128.110.153.209"
+name = "root"
+password = "root123"
+db_name = "mme_ue_db"
+
+'''
 rds_host  = rds_config.rds_host
 name = rds_config.db_username
 password = rds_config.db_password
 db_name = rds_config.db_name
+'''
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logging.basicConfig(level=logging.INFO)
-'''
+
 try:
-    conn = pymysql.connect(rds_host, user=name, passwd=password, db=db_name, connect_timeout=5)
+    #conn = pymysql.connect(rds_host, user=name, passwd=password, db=db_name, port=3306, connect_timeout=5)
+    print("Before connect call")
+    db_connect_start = time.time()
+    conn = pymysql.connect(rds_host, user=name, passwd=password, db=db_name, port=3306)
+    print("DB connection took %s seconds" % (time.time() - db_connect_start))
+    print("After connect call")
 except Exception as e:
     logger.error(e)
     logger.error(e.args)
@@ -68,10 +81,10 @@ def insert(ue_id, ue_id_type, enb_ue_s1ap_id, ecgi, ue_cap, mme_s1ap_ue_id, eps_
             logger.error(e)
             logger.error(e.args)
             sys.exit()
-'''
+
 def generate_mme_s1ap_ue_id():
-    id = random.randint(0,100000)
-    '''
+    #id = random.randint(0,100000)
+    
     while True:
         id = random.randint(0,100000)
         with conn.cursor() as cur:
@@ -86,7 +99,7 @@ def generate_mme_s1ap_ue_id():
                 logger.error(e)
                 logger.error(e.args)
                 continue
-    '''
+    
     return id
 
 
@@ -99,11 +112,34 @@ def get_apn_from_hss():
 def get_pgw_from_apn():
     return "128.100.3.4"
 
+def get_async_web_response(url, method='GET', params=None, headers=None, encode=False, verify=None, use_verify=False, callback=None):
+    import grequests
+    # make a string with the request type in it:
+    response = None
+    request = None
+    try:
+        if 'POST' == method:
+            if use_verify:
+                request = grequests.post(url, data=params, headers=headers, verify=verify, callback=callback)
+            else:
+                request = grequests.post(url, data=params, headers=headers, callback=callback)
+        else:
+            request = requests.get(url, data=params, headers=headers, callback=callback)
+
+        if request:
+            response = grequests.send(request, grequests.Pool(1))
+            return response
+        else:
+            return response
+    except:
+        return response
+
 def handle(event):
     """
     This function fetches content from mysql RDS instance
     """
     print("Hello! You said: " + event)
+    func_start = time.time()
     item_count = 0
     logger.info(event)
     body = json.loads(event)
@@ -114,8 +150,9 @@ def handle(event):
     #    print("Count:",count)
     #    return "One Accept already in progress!"
     #else:
-    
+    checkpoint = time.time()
     mme_s1ap_ue_id = generate_mme_s1ap_ue_id()
+    print("Generated ue IDs, %s seconds" % (time.time() - checkpoint))
     print(mme_s1ap_ue_id)
     
     eps_bearer_id = generate_eps_bearer_id()
@@ -125,11 +162,13 @@ def handle(event):
     pgw_ip = get_pgw_from_apn()
     print(pgw_ip)
     ue_state = "1"
-    '''
+    
+    checkpoint = time.time()
     insert(body['UeId'],body['UeIdType'], body['EnbUeS1apId'], body['Ecgi'], body['UeCap'], mme_s1ap_ue_id,\
         eps_bearer_id, apn, pgw_ip, ue_state)
     print("record inserted!")
-    '''    
+    print("Inserted entry, %s seconds" % (time.time() - checkpoint))
+        
     payload={}
     payload['ue_id'] = body['UeId']
     payload['ue_id_type']= body['UeIdType']
@@ -154,12 +193,17 @@ def handle(event):
         print(e)
         raise e
     '''
+    
+    checkpoint = time.time()
     gateway = "128.110.153.209"
     url = "http://"+gateway+":8080/function/create_session_req"
     headers = {
       'content-type': "application/json" 
     }
-    invoke_response = requests.post(url,headers=headers,data=json.dumps(payload))
+    get_async_web_response(url, 'POST', params=json.dumps(payload), headers=headers)
+    #invoke_response = requests.post(url,headers=headers,data=json.dumps(payload))
+    print("Sent request to create_session_req, %s seconds" % (time.time() - checkpoint))
+    print("Function execution took %s seconds" % (time.time() - func_start))
  
     print(invoke_response)
     

@@ -23,15 +23,23 @@ import requests
 import json
 import urllib
 import time
+
+rds_host  = "128.110.153.209"
+name = "root"
+password = "root123"
+db_name = "mme_ue_db"
+
+'''
 rds_host  = rds_config.rds_host
 name = rds_config.db_username
 password = rds_config.db_password
 db_name = rds_config.db_name
+'''
 
 LOGGER = logging.getLogger()
 LOGGER.setLevel(logging.INFO)
 logging.basicConfig(level=logging.INFO)
-'''
+
 try:
     conn = pymysql.connect(rds_host, user=name, passwd=password, db=db_name, connect_timeout=5)
 except Exception as e:
@@ -43,7 +51,7 @@ except:
     sys.exit()
 
 LOGGER.info("SUCCESS: Connection to RDS mysql instance succeeded")
-'''
+
 def handle(event):
     """
     This function fetches content from mysql RDS instance
@@ -62,7 +70,7 @@ def handle(event):
     LOGGER.info(ue_id)
     LOGGER.info(ue_id_type)
     LOGGER.info(ue_resp_ip)
-    '''
+    
     with conn.cursor() as cur:
         LOGGER.info("Updating table")
         LOGGER.info(event)
@@ -73,7 +81,7 @@ def handle(event):
             LOGGER.error(e)
             LOGGER.error(e.args)
             sys.exit()
-    '''
+  
     payload={}
     payload['ue_id']=int(ue_id)
     payload['ue_id_type']=ue_id_type
