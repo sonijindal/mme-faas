@@ -1,2 +1,2 @@
-language: python-attach_request
+language: python-mme-faas
 fprocess: python index.py
