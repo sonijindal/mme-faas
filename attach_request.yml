@@ -4,7 +4,7 @@ provider:
 
 functions:
   attach_request:
-    lang: python
+    lang: python-mme-faas
     write_debug: true
     handler: ./attach_request
     image: sonika/attach_request
