@@ -1,3 +1,2 @@
 pymysql
-boto3
 requests

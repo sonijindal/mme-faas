@@ -25,10 +25,8 @@ LOGGER.setLevel(logging.INFO)
 logging.basicConfig(level=logging.INFO)
 
 def handle(event):
-    LOGGER.info("Inside create session req")
+    LOGGER.info("CREATE SESSIOn REQUEST function")
     LOGGER.info(event)
-    print("Inside create session req")
-    print(event)
     event = json.loads(event)    
     eve={"Message":"create_session_req", "UeId":event['ue_id'], "UeIdType":event['ue_id_type'], "UeRespIp":event['ue_resp_ip']}
     payload=json.dumps(eve)

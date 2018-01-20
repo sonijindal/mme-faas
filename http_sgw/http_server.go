@@ -40,24 +40,17 @@ func hello(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(t.Message)
-	fmt.Println(t.UeId)
-	fmt.Println(t.UeRespIp)
-	io.WriteString(w, "Hello world!")
+	io.WriteString(w, "ACK")
 	go func(message string, ueid int, ueRespIp string) {
 		if message == "create_session_req" {
 			// TODO: Don't hardcode
-			req_url := "url of create_session_res from API gateway, eg. https://desaqbahb0.execute-api.us-east-1.amazonaws.com/prod/create_session_res"
-			fmt.Println("Calling lambda create_session_res")
+			//req_url := "url of create_session_res from API gateway, eg. https://desaqbahb0.execute-api.us-east-1.amazonaws.com/prod/create_session_res"
+			req_url := "http://128.110.153.209:8080/function/create_session_res"
 			form := make(url.Values)
-			fmt.Println(ueid)
-			fmt.Println(strconv.Itoa(ueid))
 			form.Add("ue_id", strconv.Itoa(ueid))
 			form.Add("ue_id_type", "guti")
 			form.Add("ue_resp_ip", ueRespIp)
 			http.PostForm(req_url, form)
-		} else if message == "attach_accept" {
-			fmt.Println("Got the attach accept!!")
 		} else {
 			fmt.Printf("Message(%s) not supported!\n", message)
 		}
@@ -66,5 +59,5 @@ func hello(w http.ResponseWriter, req *http.Request) {
 
 func main() {
 	http.HandleFunc("/", hello)
-	http.ListenAndServe(":8000", nil)
+	http.ListenAndServe(":8002", nil)
 }

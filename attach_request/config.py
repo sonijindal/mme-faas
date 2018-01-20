@@ -13,8 +13,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License
 '''
-#config file containing credentials for rds mysql instance
-rds_host = "<rds_instance_host>"
-db_username = "<username>"
-db_password = "<pwd>"
-db_name = "<db_name>"
+#credentials for rds mysql instance
+rds_host = "128.110.153.234"
+db_username = "root"
+db_password = "root123"
+db_name = "mme_ue_db"
+
+#Gateway hosting functions
+gateway = "128.110.153.209"

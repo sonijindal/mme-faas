@@ -34,23 +34,30 @@ type test_struct struct {
 	UeIdType string `json:"ueIdType"`
 }
 
+var start time.Time
 var UeRespIp_Arg string
 var SgwReqIp_Arg string
+var total_accept = 0
+var num_requests = 100
 
 func hello(w http.ResponseWriter, req *http.Request) {
 	body, _ := ioutil.ReadAll(req.Body)
-	//fmt.Printf("%s\n", body)
 	var t test_struct
 	err := json.Unmarshal(body, &t)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(t.Message)
-	fmt.Println(t.UeId)
 	io.WriteString(w, "Success")
 	go func(message string, ueid int) {
 		if message == "attach_accept" {
-			fmt.Println("Got the attach accept!!")
+			total_accept++
+			till_now := time.Since(start)
+			fmt.Printf("Accepted:%d, time till now:%d ms\n", total_accept, till_now / time.Millisecond)
+			if (total_accept == num_requests - 1) {
+				elapsed := time.Since(start)
+				fmt.Printf("Time taken to complete %d requests is %d ms\n", num_requests, elapsed / time.Millisecond);
+				os.Exit(3)
+			}
 		} else {
 			fmt.Printf("Message(%s) not supported!\n", message)
 		}
@@ -69,16 +76,16 @@ type UeInfo struct {
 
 func send_requests() {
 	//TODO: Don't hardcode
-	req_url := "attach_accept url from API gateway, eg: https://desaqbahb0.execute-api.us-east-1.amazonaws.com/prod/attach_request"
-	for i := 1; i < 10; i++ {
+	req_url := "http://128.110.153.209:8080/function/attach_request"
+	for i := 1; i < num_requests; i++ {
 		ueid := i
 		u := UeInfo{UeRespIp: UeRespIp_Arg, SgwReqIp: SgwReqIp_Arg, UeId: ueid, UeIdType: "guti", EnbUeS1apId: "456", Ecgi: "789", UeCap: "none"}
 		form := new(bytes.Buffer)
 		json.NewEncoder(form).Encode(u)
-		fmt.Println("Sending attach_request,", ueid)
-		http.Post(req_url, "application/json; charset=utf-8", form)
-		//fmt.Println(resp)
-		time.Sleep(1000 * time.Millisecond)
+		go func(req_url string, form io.Reader) {
+		  http.Post(req_url, "application/json", form)
+		} (req_url, form)
+		//time.Sleep(10 * time.Millisecond)
 	}
 }
 func main() {
@@ -87,7 +94,8 @@ func main() {
 	fmt.Println(argsWithoutProg[1])
 	UeRespIp_Arg = argsWithoutProg[0]
 	SgwReqIp_Arg = argsWithoutProg[1]
+	start = time.Now()
 	go send_requests()
 	http.HandleFunc("/", hello)
-	http.ListenAndServe(":8000", nil)
+	http.ListenAndServe(":8001", nil)
 }
