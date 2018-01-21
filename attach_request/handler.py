@@ -130,7 +130,7 @@ def handle(event):
     payload['ue_resp_ip']=body['UeRespIp']
     payload['sgw_req_ip']=body['SgwReqIp']
 
-    url = "http://"+config.gateway+":8080/function/create_session_req"
+    url = "http://"+config.gateway+":8080/async-function/create_session_req"
     headers = {
       'content-type': "application/json" 
     }

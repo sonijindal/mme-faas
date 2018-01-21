@@ -67,7 +67,7 @@ def handle(event):
     payload['ue_id_type']=ue_id_type
     payload['ue_resp_ip']=ue_resp_ip
 
-    url = "http://"+config.gateway+":8080/function/attach_accept"
+    url = "http://"+config.gateway+":8080/async-function/attach_accept"
     headers = {
       'content-type': "application/json" 
     }
