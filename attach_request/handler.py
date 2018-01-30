@@ -22,6 +22,7 @@ import json
 import urllib
 import random
 import requests
+import time
 
 rds_host  = config.rds_host
 name = config.db_username
@@ -32,19 +33,21 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logging.basicConfig(level=logging.INFO)
 
-try:
+def db_connect():
+  try:
     conn = pymysql.connect(rds_host, user=name, passwd=password, db=db_name, connect_timeout=5)
-except Exception as e:
+    return conn
+  except Exception as e:
     logger.error(e)
     logger.error(e.args)
     sys.exit()
-except: 
+  except: 
     logger.error("ERROR: Unexpected error: Could not connect to MySql instance.")
     sys.exit()
 
 logger.info("SUCCESS: Connection to RDS mysql instance succeeded")
 
-def select_with_key(ue_id):
+def select_with_key(conn, ue_id):
     logger.info("Checking for key:")
     with conn.cursor() as cur:
         try:
@@ -55,7 +58,7 @@ def select_with_key(ue_id):
             sys.exit()
     return cur.rowcount
 
-def insert(ue_id, ue_id_type, enb_ue_s1ap_id, ecgi, ue_cap, mme_s1ap_ue_id, eps_bearer_id, apn, pgw_ip, ue_state):
+def insert(conn, ue_id, ue_id_type, enb_ue_s1ap_id, ecgi, ue_cap, mme_s1ap_ue_id, eps_bearer_id, apn, pgw_ip, ue_state):
     logger.info("Inserting key:")
     with conn.cursor() as cur:
         try:
@@ -68,7 +71,7 @@ def insert(ue_id, ue_id_type, enb_ue_s1ap_id, ecgi, ue_cap, mme_s1ap_ue_id, eps_
             logger.error(e.args)
             sys.exit()
 
-def generate_mme_s1ap_ue_id():
+def generate_mme_s1ap_ue_id(conn):
     while True:
         id = random.randint(0,100000)
         with conn.cursor() as cur:
@@ -98,7 +101,9 @@ def get_pgw_from_apn():
 def handle(event):
     logger.info('ATTACH REQUEST function')
     logger.info(event)
-    item_count = 0
+    func_start = time.time()
+    conn = db_connect()
+    print("DB connection took %s seconds" % (time.time() - func_start))
     body = json.loads(event)
     #logger.info(body)
     #count = select_with_key(event['ue_id'])
@@ -107,14 +112,18 @@ def handle(event):
     #    return "One Accept already in progress!"
     #else:
     
-    mme_s1ap_ue_id = generate_mme_s1ap_ue_id()
+    checkpoint = time.time()
+    mme_s1ap_ue_id = generate_mme_s1ap_ue_id(conn)
+    print("Generated ue IDs, %s seconds" % (time.time() - checkpoint))
     
     eps_bearer_id = generate_eps_bearer_id()
     apn = get_apn_from_hss()
     pgw_ip = get_pgw_from_apn()
     ue_state = "1"
-    insert(body['UeId'],body['UeIdType'], body['EnbUeS1apId'], body['Ecgi'], body['UeCap'], mme_s1ap_ue_id,\
+    checkpoint = time.time()
+    insert(conn, body['UeId'],body['UeIdType'], body['EnbUeS1apId'], body['Ecgi'], body['UeCap'], mme_s1ap_ue_id,\
         eps_bearer_id, apn, pgw_ip, ue_state)
+    print("Inserted entry, %s seconds" % (time.time() - checkpoint))
     print("record inserted!")
     payload={}
     payload['ue_id'] = body['UeId']
@@ -134,7 +143,10 @@ def handle(event):
     headers = {
       'content-type': "application/json" 
     }
+    checkpoint = time.time()
     invoke_response = requests.post(url,headers=headers,data=json.dumps(payload))
+    print("Sent request to create_session_req, %s seconds" % (time.time() - checkpoint))
+    print("ATTACH_REQUEST: Function execution took %s seconds" % (time.time() - func_start))
  
     print(invoke_response)
     
