@@ -1,0 +1,11 @@
+provider:
+  name: faas
+  gateway: http://128.110.153.209:8080
+
+functions:
+  parser:
+    lang: Dockerfile
+    handler: ./parser
+    image: sonika/parser
+    environment:
+      write_debug: true
