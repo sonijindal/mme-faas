@@ -1,0 +1,30 @@
+FROM ubuntu:16.04
+
+ENV MCP_HOME /opt/mcp
+
+RUN apt-get update && apt-get install make gcc cmake libboost-all-dev libsctp-dev wget vim g++ libprotobuf-dev net-tools -y
+
+RUN cd /opt && wget https://tls.mbed.org/download/mbedtls-2.5.1-apache.tgz && \
+    tar -xvf mbedtls-2.5.1-apache.tgz
+    
+RUN cd /opt/mbedtls-2.5.1 && \
+    cmake -DUSE_SHARED_MBEDTLS_LIBRARY=On . && \
+    make -j4 && \
+    make -j4 install
+
+#RUN cd /opt && wget https://gitlab.flux.utah.edu/junguk/MobileControlPlanes/repository/master/archive.tar.gz -O mcp.tgz && \
+#    mkdir -p ${MCP_HOME} && tar -xvzf mcp.tgz -C ${MCP_HOME} --strip-components 1
+
+RUN mkdir -p ${MCP_HOME}
+ADD MobileControlPlanes ${MCP_HOME}
+WORKDIR ${MCP_HOME}
+
+RUN mkdir build && \
+    cd build && \
+    cmake ../ && \
+    make -j4
+
+RUN cp subscriber/LTE_fdd_enodeb.user_db /tmp/
+
+#CMD ["/opt/mcp/build/mymme/src/mymme"]
+CMD ["/bin/bash"]

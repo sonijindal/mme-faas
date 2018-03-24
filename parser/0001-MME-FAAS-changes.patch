@@ -1,0 +1,433 @@
+From 332f81a21608840a6f7234685c9dfcc6118b9a64 Mon Sep 17 00:00:00 2001
+From: Sonika <sonijindal@gmail.com>
+Date: Fri, 23 Mar 2018 23:18:28 -0600
+Subject: [PATCH] MME-FAAS changes
+
+---
+ lib/src/common/threads.c         |  2 ++
+ mymme/hdr/mme/mme.h              |  1 +
+ mymme/hdr/mme/mmes1ap.h          |  2 +-
+ mymme/hdr/mmedebug.h             |  2 +-
+ mymme/src/hss/LTE_fdd_enb_hss.cc | 10 +++---
+ mymme/src/hss/user_db_map.cc     |  6 ++--
+ mymme/src/main.cc                | 56 ++++++++++++++++++++-------------
+ mymme/src/mme/mme.cc             |  2 ++
+ mymme/src/mme/mmenas.cc          |  2 ++
+ mymme/src/mme/mmes1ap.cc         | 67 ++++++++++++++++++++++++++--------------
+ 10 files changed, 97 insertions(+), 53 deletions(-)
+
+diff --git a/lib/src/common/threads.c b/lib/src/common/threads.c
+index ec730d5..cc8406d 100644
+--- a/lib/src/common/threads.c
++++ b/lib/src/common/threads.c
+@@ -89,7 +89,9 @@ bool threads_new_rt_cpu(pthread_t *thread, void *(*start_routine) (void*), void
+   int err = pthread_create(thread, prio_offset >= 0 ? &attr : NULL, start_routine, arg);
+   if (err) {
+     if (EPERM == err) {
++      #ifdef PRINTLOG
+       perror("Warning: Failed to create thread with real-time priority. Creating it with normal priority");
++      #endif
+       err = pthread_create(thread, NULL, start_routine, arg);
+       if (err) {
+         perror("pthread_create");
+diff --git a/mymme/hdr/mme/mme.h b/mymme/hdr/mme/mme.h
+index 0844b3d..861ee58 100644
+--- a/mymme/hdr/mme/mme.h
++++ b/mymme/hdr/mme/mme.h
+@@ -24,6 +24,7 @@ public:
+ 	bool print_all_users();
+ 	bool send_emergency_req();
+ 	bool stop_mme();
++	mymme::mmes1ap *get_s1ap() { return &s1ap; };
+ 
+ private:
+ 	static mme *instance;
+diff --git a/mymme/hdr/mme/mmes1ap.h b/mymme/hdr/mme/mmes1ap.h
+index 7797d1a..4e385a5 100644
+--- a/mymme/hdr/mme/mmes1ap.h
++++ b/mymme/hdr/mme/mmes1ap.h
+@@ -62,7 +62,7 @@ public:
+   void stop();
+   void run_thread();
+   bool wait_for_enb();
+-  bool handle_s1ap_rx_pdu(srslte::byte_buffer_t *pdu, int sock);
++  bool handle_s1ap_rx_pdu(srslte::byte_buffer_t *pdu, int sock, uint32_t *enb_id);
+   void reset_users();
+ 
+   bool cleanup();
+diff --git a/mymme/hdr/mmedebug.h b/mymme/hdr/mmedebug.h
+index f2f3e99..446adbf 100644
+--- a/mymme/hdr/mmedebug.h
++++ b/mymme/hdr/mmedebug.h
+@@ -4,7 +4,7 @@
+ #define OAISIM
+ //#define OEPCRADIO
+ 
+-#define PRINTLOG
++//#define PRINTLOG
+ //#define AVDEBUG
+ //#define DEBUG
+ //#define HSSDEBUG
+diff --git a/mymme/src/hss/LTE_fdd_enb_hss.cc b/mymme/src/hss/LTE_fdd_enb_hss.cc
+index ef9407e..43a7462 100755
+--- a/mymme/src/hss/LTE_fdd_enb_hss.cc
++++ b/mymme/src/hss/LTE_fdd_enb_hss.cc
+@@ -72,7 +72,6 @@ static pthread_mutex_t hss_instance_mutex        = PTHREAD_MUTEX_INITIALIZER;
+ /*******************/
+ LTE_fdd_enb_hss* LTE_fdd_enb_hss::get_instance(void)
+ {
+-
+     if(NULL == instance)
+     {
+         instance = new LTE_fdd_enb_hss();
+@@ -122,22 +121,23 @@ void LTE_fdd_enb_hss::read_user_file(void)
+     FILE                  *user_file = NULL;
+     std::string            line_str;
+     char                   str[LTE_FDD_ENB_MAX_LINE_SIZE];
+-
++#ifdef PRINTLOG
+     cout << "read user file " << endl;
++#endif
+     user_file = fopen("/tmp/LTE_fdd_enodeb.user_db", "r");
+ 
+     if(NULL != user_file)
+     {
+         while(NULL != fgets(str, LTE_FDD_ENB_MAX_LINE_SIZE, user_file))
+         {
+-        	//cout << " add user " << str << endl;
+             line_str = str;
+             handle_add_user(line_str.substr(0, line_str.length()-1));
+         }
+         fclose(user_file);
+         use_user_file = true;
+-        //cout << "print all user " << this->print_all_users() << endl;
+-
++#ifdef PRINTLOG
++        cout << "print all user " << this->print_all_users() << endl;
++#endif
+     }
+ }
+ 
+diff --git a/mymme/src/hss/user_db_map.cc b/mymme/src/hss/user_db_map.cc
+index 503704b..bc65f85 100644
+--- a/mymme/src/hss/user_db_map.cc
++++ b/mymme/src/hss/user_db_map.cc
+@@ -11,7 +11,9 @@ using namespace std;
+ namespace mymme {
+ 
+ user_db_map::user_db_map() {
++#ifdef PRINTLOG
+ 	cout << "creating user_db_map " << endl;
++#endif
+ }
+ 
+ user_db_map::~user_db_map() {
+@@ -21,9 +23,9 @@ user_db_map::~user_db_map() {
+ void user_db_map::clear_db() {
+ 	std::map<uint64, LTE_FDD_ENB_HSS_USER_STRUCT*>::iterator iter;
+ 	LTE_FDD_ENB_HSS_USER_STRUCT* user = NULL;
+-
++#ifdef PRINTLOG
+ 	cout << "clear db in map " << user_map.size() << endl;
+-
++#endif
+ 	if(user_map.size() > 0){
+ 		for (iter = user_map.begin(); iter != user_map.end(); iter++) {
+ 			user = (iter->second);
+diff --git a/mymme/src/main.cc b/mymme/src/main.cc
+index 6528700..4fe6b8a 100644
+--- a/mymme/src/main.cc
++++ b/mymme/src/main.cc
+@@ -5,6 +5,8 @@
+ #include <iostream>
+ #include <fstream>
+ #include <string>
++#include <curl/curl.h>
++#include <cassandra.h>
+ 
+ #include "../hdr/mme/mme.h"
+ #include "../hdr/mmedebug.h"
+@@ -52,33 +54,45 @@ void *input_loop(void *m)
+   }
+   return NULL;
+ }
+-
++/* ./mymme "0x00 0x0c 0x40 0x3f 0x00 0x00 0x05 0x00 0x08 0x00 0x02 0x00 0x07 0x00 0x1a 0x00 0x17 0x16 0x07 0x41 0x71 0x08 0x99 0x89 0x89 0x00 0x00 0x00 0x01 0x10 0x02 0x80 0xc0 0x00 0x05 0x02 0x00 0xd0 0x11 0xd1 0x00 0x43 0x00 0x06 0x00 0x99 0xf8 0x89 0x00 0x01 0x00 0x64 0x40 0x08 0x00 0x99 0xf8 0x89 0x00 0x01 0x1d 0x70 0x00 0x86 0x40 0x01 0x30"
++*/
+ int main(int argc, char *argv[])
+ {
+ #if defined PROTOBUF
+-	  GOOGLE_PROTOBUF_VERIFY_VERSION;
++	GOOGLE_PROTOBUF_VERIFY_VERSION;
+ #endif
+ 
+-  signal(SIGINT,    sig_int_handler);
+-  mme *mme = mme::get_instance();
+-
+-  cout << "---  LTE MME  ---" << endl << endl;
+-  running = true;
+-  mme->init();
+-
+-  pthread_t input;
+-  pthread_create(&input, NULL, &input_loop, NULL);
+-
+-  while(running) {
+-  	  sleep(2);
+-  }
++	signal(SIGINT,    sig_int_handler);
++	srslte::byte_buffer_t bytes;
++	mme *mme = mme::get_instance();
++	mme->init();
++	int i = 0;
++#ifdef PRINTLOG
++	cout << "Parameter receievd:" << argv[1] << endl;
++#endif
++	char *token = strtok(argv[1], ",");
++	while (token != NULL)
++	{
++		bytes.msg[i] = strtol(token, NULL, 16);
++#ifdef PRINTLOG
++		printf("%x ", bytes.msg[i]);
++#endif
++		i++;
++		token = strtok(NULL, ",");
++	}
++	cout << endl;
++	bytes.N_bytes = i;
+ 
+-  mme->stop();
+-  cout << "---  exiting  ---" << endl;
++	client_data_t* client_data;
++	if ((client_data = (client_data_t*) malloc(sizeof(client_data_t))) == NULL) {
++		cout << "Error in memory allocation" << endl;
++		return false;
++	}
+ 
+-#if defined PROTOBUF
+-  google::protobuf::ShutdownProtobufLibrary();
+-#endif
++	memset(client_data, 0, sizeof(client_data));
++	client_data->mmes1ap = mme->get_s1ap();
++	uint32_t enb_id = 0;
++	client_data->mmes1ap->handle_s1ap_rx_pdu(&bytes, -1, &enb_id);
+ 
+-  exit(0);
++	exit(0);
+ }
+diff --git a/mymme/src/mme/mme.cc b/mymme/src/mme/mme.cc
+index 202542d..83b67c1 100644
+--- a/mymme/src/mme/mme.cc
++++ b/mymme/src/mme/mme.cc
+@@ -36,7 +36,9 @@ mme::~mme(){}
+ 
+ bool mme::init()
+ {
++#ifdef PRINTLOG
+   cout << "mme init" << endl;
++#endif
+   this->hss = LTE_fdd_enb_hss::get_instance();
+   nas.init(this->hss);
+   s1ap.init(&nas);
+diff --git a/mymme/src/mme/mmenas.cc b/mymme/src/mme/mmenas.cc
+index 1f95d19..22167bf 100644
+--- a/mymme/src/mme/mmenas.cc
++++ b/mymme/src/mme/mmenas.cc
+@@ -7,7 +7,9 @@ mmenas::mmenas()
+ 	: next_ip_addr(3232236321), next_m_tmsi(1), dns_addr(134744072), eps_bearer_id(5),
+ 		  proc_transaction_id(1), qci(6), apn("mymme"),isJNI(false)
+ {
++#ifdef PRINTLOG
+ 	cout << " @@mmenas constructor @@" << endl;
++#endif
+ // need to read file..
+ #if defined OAISIM
+ 	mcc = 208;
+diff --git a/mymme/src/mme/mmes1ap.cc b/mymme/src/mme/mmes1ap.cc
+index 281b7a6..b66de8a 100644
+--- a/mymme/src/mme/mmes1ap.cc
++++ b/mymme/src/mme/mmes1ap.cc
+@@ -2,12 +2,14 @@
+ 
+ using namespace std;
+ namespace mymme {
+-
++#undef PRINTLOG
+ mmes1ap::mmes1ap()
+ : enb_connected(false), running(false), server_fd(-1), next_MME_UE_S1AP_ID(1),
+ 	next_ue_stream_id(1), next_ue_sgw_teid(1)
+ {
++#if defined PRINTLOG
+ 	cout << "mmes1ap constructor" << endl;
++#endif
+ #if defined OAISIM
+ 	string_to_mcc("208",&mme_args.mcc);
+ 	string_to_mnc("93",&mme_args.mnc);
+@@ -218,7 +220,6 @@ mmes1ap::~mmes1ap(){
+ }
+ 
+ bool mmes1ap::init() {
+-	cout << "init in mme s1ap" << endl;
+ 	// trigger to run "run_thread()" function.
+ 	start(S1AP_THREAD_PRIO);
+ 	return true;
+@@ -703,7 +704,9 @@ bool mmes1ap::pack_s1_response(srslte::byte_buffer_t *buf) {
+ }
+ 
+ bool mmes1ap::handle_s1_request(LIBLTE_S1AP_MESSAGE_S1SETUPREQUEST_STRUCT *s1setup, srslte::byte_buffer_t *pdu, int sock){
++	#ifdef PRINTLOG
+ 	cout << "\n\n## Request S1 ##" << endl;
++	#endif
+ 	uint16 mcc;
+ 	uint16 mnc;
+     uint32_t plmn;
+@@ -716,26 +719,27 @@ bool mmes1ap::handle_s1_request(LIBLTE_S1AP_MESSAGE_S1SETUPREQUEST_STRUCT *s1set
+ 	mcc_to_string(mcc, &str_mcc);
+ 	mnc_to_string(mnc, &str_mnc);
+ 
+-#if 1
+-		cout << " PLMN Id  " << plmn  << " MCC " << mcc << " " << str_mcc << " MNC " << mnc << " " << str_mnc;
+-		cout << "DRX " << s1setup->DefaultPagingDRX.ext << endl;
++
+ 		uint8* p_bytes = &s1setup->Global_ENB_ID.eNB_ID.choice.macroENB_ID.buffer[0];
+ 		uint32 enb_id = liblte_bits_2_value(&p_bytes, 20);
++#ifdef PRINTLOG
++		cout << " PLMN Id  " << plmn  << " MCC " << mcc << " " << str_mcc << " MNC " << mnc << " " << str_mnc;
++		cout << "DRX " << s1setup->DefaultPagingDRX.ext << endl;
++		cout << " macroENB id " << std::dec << enb_id  << endl;
+ #endif
+ 
+-	cout << " macroENB id " << std::dec << enb_id  << endl;
++
+ 
+ 	// TODO : need to manage data structure per thread
+ 	// Current version of prototype is not designed to support multiple eNBs well
+ 	// IMPORTANT : can cause race condition.. use mutex..
+-	pthread_mutex_lock(&this->lock);
+-    this->enb_map[enb_id] = sock;
+-    std::map<uint32_t, uint32_t>::iterator it;
+-	for (it = enb_map.begin(); it != enb_map.end(); it++) {
+-		cout << " macroENB id " << it->first << endl;
+-	}
+-	pthread_mutex_unlock(&this->lock);
+-
++	//pthread_mutex_lock(&this->lock);
++	//this->enb_map[enb_id] = sock;
++	//std::map<uint32_t, uint32_t>::iterator it;
++	//for (it = enb_map.begin(); it != enb_map.end(); it++) {
++	//	cout << " macroENB id " << it->first << endl;
++	//}
++	//pthread_mutex_unlock(&this->lock);
+ 
+ 	pack_s1_response(pdu);
+   	send_sctp_response(pdu, sock);
+@@ -759,9 +763,11 @@ void mmes1ap::update_ue_info_from_initial_ue_messages(LIBLTE_S1AP_MESSAGE_INITIA
+ 	uint8* p_cell_ID = &initue->EUTRAN_CGI.cell_ID.buffer[0];
+ 	cell_id = liblte_bits_2_value(&p_cell_ID, 20);
+ 
++#ifdef PRINTLOG
+ 	cout << " PLMN Id  " << plmn << " MCC " << str_mcc << " MNC " << " "
+ 			<< str_mnc << " TAC " << tac << " macroENB id " << std::dec
+ 			<< cell_id << endl;
++#endif
+ 
+ 	ue->set_cellid(cell_id);
+ 	ue->set_tac(tac);
+@@ -852,7 +858,7 @@ bool mmes1ap::handle_init_ue_message(LIBLTE_S1AP_MESSAGE_INITIALUEMESSAGE_STRUCT
+ 		pack_dl_NASTransport((LIBLTE_BYTE_MSG_STRUCT*)pdu, nas_pdu, ue);
+ 	}
+ 
+-  	send_sctp_response(pdu, sock);
++	send_sctp_response(pdu, sock);
+   	return true;
+ }
+ 
+@@ -1417,7 +1423,7 @@ bool mmes1ap::handle_unsuccessfuloutcome(LIBLTE_S1AP_UNSUCCESSFULOUTCOME_STRUCT
+ }
+ 
+ // 	For standalone-MME
+-bool mmes1ap::handle_s1ap_rx_pdu(srslte::byte_buffer_t *pdu, int sock)
++bool mmes1ap::handle_s1ap_rx_pdu(srslte::byte_buffer_t *pdu, int sock, uint32_t *enb_id)
+ {
+   LIBLTE_S1AP_S1AP_PDU_STRUCT rx_pdu;
+ 
+@@ -1435,8 +1441,13 @@ bool mmes1ap::handle_s1ap_rx_pdu(srslte::byte_buffer_t *pdu, int sock)
+   bool result;
+ 
+   switch(rx_pdu.choice_type) {
+-  	  case LIBLTE_S1AP_S1AP_PDU_CHOICE_INITIATINGMESSAGE:
+-  		  return handle_initiatingmessage(&rx_pdu.choice.initiatingMessage, pdu, sock);
++	case LIBLTE_S1AP_S1AP_PDU_CHOICE_INITIATINGMESSAGE: {
++		result = handle_initiatingmessage(&rx_pdu.choice.initiatingMessage, pdu, sock);
++		LIBLTE_S1AP_INITIATINGMESSAGE_STRUCT *msg = &rx_pdu.choice.initiatingMessage;
++		if (LIBLTE_S1AP_INITIATINGMESSAGE_CHOICE_INITIALUEMESSAGE == msg->choice_type)
++			*enb_id = msg->choice.InitialUEMessage.eNB_UE_S1AP_ID.ENB_UE_S1AP_ID;
++		return result;
++	}
+   	  case LIBLTE_S1AP_S1AP_PDU_CHOICE_SUCCESSFULOUTCOME:
+   		  return handle_successfuloutcome(&rx_pdu.choice.successfulOutcome, pdu, sock);
+   	  case LIBLTE_S1AP_S1AP_PDU_CHOICE_UNSUCCESSFULOUTCOME:
+@@ -1481,7 +1492,8 @@ extern "C" void *handle_connection(void *thread_data) {
+ #if defined PRINTLOG
+ 			cout << "\n\nReceived S1AP PDU " << client_data->pdu->N_bytes << " bytes " << endl;
+ #endif
+-			client_data->mmes1ap->handle_s1ap_rx_pdu(client_data->pdu, client_data->socket_fd);
++			uint32_t enb_id = 0;
++			client_data->mmes1ap->handle_s1ap_rx_pdu(client_data->pdu, client_data->socket_fd, &enb_id);
+ 		}else if (client_data->pdu->N_bytes == 0){
+ 			printf("Connection from %s closed by remote peer.\n", client_ip);
+ 			client_data->mmes1ap->reset_users();
+@@ -1559,14 +1571,18 @@ bool mmes1ap::wait_for_enb() {
+ 
+ // pthread function
+ void mmes1ap::run_thread() {
++#if 0
++#ifdef PRINTLOG
+ 	cout << "run_thread in mme s1ap" << endl;
++#endif
+ 	server_fd = socket(ADDR_FAMILY, SOCK_TYPE, PROTO);
+ 	if (server_fd < 0) {
+ 		cout << "Cannot create socket" << endl;
+ 		return;
+ 	}
+-
++#ifdef PRINTLOG
+ 	cout << "sock : " << server_fd << endl;
++#endif
+ 	struct sockaddr_in bind_addr;
+ 	memset(&bind_addr, 0, sizeof(struct sockaddr_in));
+ 	bind_addr.sin_family = ADDR_FAMILY;
+@@ -1592,16 +1608,17 @@ void mmes1ap::run_thread() {
+ 		cout << "Error code: " << errno << endl;
+ 		return;
+ 	}
++#ifdef PRINTLOG
+ 	printf("Listening on port %d\n", MME_PORT);
+-
++#endif
+ 	running = true;
+ 	wait_for_enb();
+ 	cout << "Exit run_thread()" << endl;
++#endif
+ }
+-
+-
+ bool mmes1ap::send_sctp_response(srslte::byte_buffer_t *buf, int sock)
+ {
++#if 0
+ #if 0 // Why does it use sctp_sendmsg()??
+ 	ssize_t n_sent = sctp_sendmsg(sock, msg.msg, msg.N_bytes,
+ 			(struct sockaddr*) &mme_addr, sizeof(struct sockaddr_in),
+@@ -1613,6 +1630,10 @@ bool mmes1ap::send_sctp_response(srslte::byte_buffer_t *buf, int sock)
+ 	if (n_sent == -1) {
+ 		return false;
+ 	}
++#endif
++        for (int i = 0; i < buf->N_bytes; ++i)
++		printf("%x ", buf->msg[i]);
++	printf("\n");
+ 	return true;
+ }
+ 
+-- 
+2.7.4
+
