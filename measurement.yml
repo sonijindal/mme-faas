@@ -1,0 +1,9 @@
+provider:
+  name: faas
+  gateway: http://128.110.154.132:8080
+
+functions:
+  measurement:
+    lang: python
+    handler: ./measurement
+    image: sonika/measurement
